@@ -19,7 +19,8 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname);
+    const timestamp = Date.now();
+    cb(null, `${timestamp}-${file.originalname}`);
   }
 });
 const upload = multer({ storage: storage });
@@ -141,7 +142,15 @@ app.post('/suspend_user_profile', authenticateToken, (req, res) => {
 // ------- THREATS
 
 app.post('/create_threat_notification', authenticateToken, (req, res) => {
-
+  const type = req.body.type;
+  const desc = req.body.desc;
+  const date = req.body.date;
+  if (!type || !desc || !date) return res.status(400).json({ message: 'ERROR', data: 'Type, description and date are required' });
+  const query = 'INSERT INTO threats (type, desc, date) VALUES (?, ?, ?)';
+  db.run(query, [type, desc, date], function(err) {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    res.json({ message: 'OK', data: this.lastID });
+  });
 });
 
 app.get('/list_threat_notifications', authenticateToken, (req, res) => {
@@ -192,7 +201,13 @@ app.post('/remove_threat_notification', authenticateToken, (req, res) => {
 // upload logs
 app.post('/upload_log', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-  res.json({ message: 'File uploaded successfully', filename: req.file.originalname });
+  const filename = req.file.filename
+  if (!filename) return res.status(400).json({ message: 'ERROR', data: 'Filename is required' });
+  const query = 'INSERT INTO logs (fname) VALUES (?)';
+  db.run(query, [filename], function(err) {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    res.json({ message: 'OK', data: this.lastID });
+  });
 });
 
 app.get('/list_logs', authenticateToken, (req, res) => {
