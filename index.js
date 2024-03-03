@@ -14,6 +14,14 @@ const port = 8000;
 
 const db = new sqlite3.Database(pathToDB);
 
+// ------ ANALYSIS MIDDLEWARE
+
+const analyzeLogEntry = (logEntry, analysis_res) => {
+  const defaultChecks = ['ET SCAN', 'ET POLICY', 'ET INFO'];
+  const spots = defaultChecks.map(check => logEntry.includes(check));
+  analysis_res.push(spots[0]);
+};
+
 // ------ FILESTORAGE MIDDLEWARE
 
 const storage = multer.diskStorage({
@@ -247,13 +255,7 @@ app.post('/remove_log', authenticateToken, (req, res) => {
   });
 });
 
-// ------- ANALYZE LOGIC
-
-const analyzeLogEntry = (logEntry, analysis_res) => {
-  const defaultChecks = ['ET SCAN', 'ET POLICY', 'ET INFO'];
-  const spots = defaultChecks.map(check => logEntry.includes(check));
-  analysis_res.push(spots[0]);
-};
+// ------- ANALYSIS
 
 app.post('/analyze_log', authenticateToken, (req, res) => {
   const uuid = req.body.uuid;
@@ -262,7 +264,6 @@ app.post('/analyze_log', authenticateToken, (req, res) => {
   db.get(query, [uuid], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    // ------- ANALYZE FUNCTION BEGIN
     const analysis_res = [];
     const readInterface = readline.createInterface({
       input: fs.createReadStream(row.fname),
@@ -273,7 +274,6 @@ app.post('/analyze_log', authenticateToken, (req, res) => {
       if (line.trim() === '') return;
       analyzeLogEntry(line, analysis_res);
     });
-    // ------- ANALYZE FUNCTION END
     readInterface.on('close', () => {
       res.json({ message: 'OK', data: analysis_res });
     });
