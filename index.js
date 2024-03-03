@@ -3,6 +3,8 @@ import sqlite3 from 'sqlite3';
 import multer from 'multer';
 import path from 'path';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import readline from 'readline';
 
 const secretKey = 'dash_super_secret_key';
 const pathToDB = 'database.db';
@@ -242,6 +244,39 @@ app.post('/remove_log', authenticateToken, (req, res) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: null });
+  });
+});
+
+// ------- ANALYZE LOGIC
+
+const analyzeLogEntry = (logEntry, analysis_res) => {
+  const defaultChecks = ['ET SCAN', 'ET POLICY', 'ET INFO'];
+  const spots = defaultChecks.map(check => logEntry.includes(check));
+  analysis_res.push(spots[0]);
+};
+
+app.post('/analyze_log', authenticateToken, (req, res) => {
+  const uuid = req.body.uuid;
+  if (!uuid) return res.status(400).json({ message: 'ERROR', data: 'UUID is required' });
+  const query = 'SELECT * FROM logs WHERE uuid = ?';
+  db.get(query, [uuid], (err, row) => {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (!row) return res.status(404).json({ message: 'NULL', data: null });
+    // ------- ANALYZE FUNCTION BEGIN
+    const analysis_res = [];
+    const readInterface = readline.createInterface({
+      input: fs.createReadStream(row.fname),
+      output: process.stdout,
+      console: false
+    });
+    readInterface.on('line', line => {
+      if (line.trim() === '') return;
+      analyzeLogEntry(line, analysis_res);
+    });
+    // ------- ANALYZE FUNCTION END
+    readInterface.on('close', () => {
+      res.json({ message: 'OK', data: analysis_res });
+    });
   });
 });
 
