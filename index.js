@@ -118,7 +118,7 @@ app.post('/update_user_profile', authenticateToken, (req, res) => {
   const name  = req.body.name;
   const email = req.body.email;
   const pass  = req.body.pass;
-  const query = 'UPDATE threats SET name = ?, email = ?, pass = ? WHERE id = ?';
+  const query = 'UPDATE users SET name = ?, email = ?, pass = ? WHERE id = ?';
   db.run(query, [name, email, pass, id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
@@ -130,7 +130,7 @@ app.post('/update_user_profile', authenticateToken, (req, res) => {
 app.post('/update_user_role', authenticateToken, (req, res) => {
   const id    = req.body.id;
   const role  = req.body.role;
-  const query = 'UPDATE threats SET role = ? WHERE id = ?';
+  const query = 'UPDATE users SET role = ? WHERE id = ?';
   db.run(query, [role, id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
@@ -141,7 +141,7 @@ app.post('/update_user_role', authenticateToken, (req, res) => {
 app.post('/suspend_user_profile', authenticateToken, (req, res) => {
   const id    = req.body.id;
   const role  = 'suspended';
-  const query = 'UPDATE threats SET role = ? WHERE id = ?';
+  const query = 'UPDATE users SET role = ? WHERE id = ?';
   db.run(query, [role, id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
