@@ -163,20 +163,26 @@ app.post('/suspend_user_profile', authenticateToken, (req, res) => {
 // ------- THREATS
 
 app.post('/create_threat_notification', authenticateToken, (req, res) => {
-  const type = req.body.type;
-  const desc = req.body.desc;
-  const date = req.body.date;
-  if (!type || !desc || !date) return res.status(400).json({ message: 'ERROR', data: 'Type, description and date are required' });
-  const query = 'INSERT INTO threats (type, desc, date) VALUES (?, ?, ?)';
+  const logID = req.body.logID;
+  const type  = req.body.type;
+  const desc  = req.body.desc;
+  const date  = Date.now();
+  if (!type || !desc) return res.status(400).json({ message: 'ERROR', data: 'Type and description are required' });
+  const query = 'INSERT INTO threats (type, description, date) VALUES (?, ?, ?)';
   db.run(query, [type, desc, date], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-    res.json({ message: 'OK', data: this.lastID });
+    const query = 'INSERT INTO threatLog (threatID, logID) VALUES (?, ?)';
+    db.run(query, [this.lastID, logID], function(err) {
+      if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+      res.json({ message: 'OK', data: this.lastID });
+    });
   });
 });
 
-app.get('/list_threat_notifications', authenticateToken, (req, res) => {
-  let query = 'SELECT * FROM threats';
-  db.all(query, [], (err, rows) => {
+app.get('/list_threat_notifications/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  let query = 'SELECT * FROM threats WHERE id IN (SELECT threatID FROM threatLog WHERE logID = ?)';
+  db.all(query, [id], (err, rows) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!rows) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: rows });
@@ -194,11 +200,10 @@ app.get('/get_threat_notification/:id', authenticateToken, (req, res) => {
 });
 
 app.post('/update_threat_notification', authenticateToken, (req, res) => {
-  const id = req.body.id;
+  const id   = req.body.id;
   const type = req.body.type;
   const desc = req.body.desc;
-  const date = req.body.date;
-  const query = 'UPDATE threats SET type = ?, desc = ?, date = ? WHERE id = ?';
+  const query = 'UPDATE threats SET type = ?, description = ? WHERE id = ?';
   db.run(query, [type, desc, date, id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
