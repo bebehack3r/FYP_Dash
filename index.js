@@ -1,4 +1,6 @@
 import express from 'express';
+import { json } from 'express';
+import cors from 'cors';
 import sqlite3 from 'sqlite3';
 import multer from 'multer';
 import path from 'path';
@@ -10,16 +12,23 @@ const secretKey = 'dash_super_secret_key';
 const pathToDB = 'database.db';
 
 const app = express();
+
+app.use(cors());
+app.use(json());
+
 const port = 8000;
 
 const db = new sqlite3.Database(pathToDB);
 
 // ------ ANALYSIS MIDDLEWARE
 
-const analyzeLogEntry = (logEntry, analysis_res) => {
-  const defaultChecks = ['ET SCAN', 'ET POLICY', 'ET INFO'];
-  const spots = defaultChecks.map(check => logEntry.includes(check));
-  analysis_res.push(spots[0]);
+const analyzeLogEntry = (logEntry, lineNum, analysis_res) => {
+  const defaultChecks = [{ entry: 'ET SCAN', type: 'scan' }, { entry: 'ET POLICY', type: 'policy' }, { entry: 'ET INFO', type: 'sus' }];
+  const spots = defaultChecks.map(check => {
+    if(logEntry.includes(check.entry)) return { type: check.type, line: logEntry, number: lineNum };
+    return null;
+  });
+  spots.map(spot => { if(spot) analysis_res.push(spot) });
 };
 
 // ------ FILESTORAGE MIDDLEWARE
@@ -46,14 +55,14 @@ function authenticateToken(req, res, next) {
     req.user = decoded.user;
     next();
   });
-}
+};
 
 function authenticateRole(roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) return res.status(403).json({ message: 'ERROR', data: 'Insufficient permissions' });
     next();
   };
-}
+};
 
 // ------ HEALTHCHECK
 
@@ -64,13 +73,13 @@ app.get('/healthcheck', (req, res) => {
 // ------ USERS
 
 app.post('/login', (req, res) => {
-  const email = req.params.email;
-  const pass  = req.params.pass;
+  const email = req.body.email;
+  const pass  = req.body.pass;
   const query = 'SELECT * FROM users WHERE email = ? AND pass = ?';
   db.get(query, [email, pass], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    jwt.sign({ pass: null, ...row }, secretKey, { expiresIn: '24h' }, (err, token) => {
+    jwt.sign({ ...row, pass: null }, secretKey, { expiresIn: '24h' }, (err, token) => {
       if (err) return res.status(500).json({ message: 'ERROR', data: 'Failed to generate token' });
       res.json({ message: 'OK', data: token });
     });
@@ -81,13 +90,14 @@ app.post('/logout', authenticateToken, (req, res) => {
   res.json({ message: 'OK', data: null });
 });
 
-app.post('/register', (req, res) => {
+app.post('/register', authenticateToken, (req, res) => {
   const name  = req.body.name;
   const email = req.body.email;
   const pass  = req.body.pass;
-  if (!name || !email || !pass) return res.status(400).json({ message: 'ERROR', data: 'Name, email, and password are required' });
-  const query = 'INSERT INTO users (name, email, pass, role) VALUES (?, ?, ?, "user")';
-  db.run(query, [name, email, pass], function(err) {
+  const role  = req.body.role;
+  if (!name || !email || !pass || !role) return res.status(400).json({ message: 'ERROR', data: 'Name, email, and password are required' });
+  const query = 'INSERT INTO users (name, email, pass, role) VALUES (?, ?, ?, ?)';
+  db.run(query, [name, email, pass, role], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     res.json({ message: 'OK', data: this.lastID });
   });
@@ -95,10 +105,10 @@ app.post('/register', (req, res) => {
 
 app.get('/list_users', authenticateToken, (req, res) => {
   let query = 'SELECT * FROM users';
-  db.get(query, [], (err, row) => {
+  db.all(query, [], (err, rows) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-    if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    res.json({ message: 'OK', data: row });
+    if (!rows) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: rows });
   });
 });
 
@@ -138,6 +148,7 @@ app.post('/update_user_role', authenticateToken, (req, res) => {
   });
 });
 
+// accessible by admin role
 app.post('/suspend_user_profile', authenticateToken, (req, res) => {
   const id    = req.body.id;
   const role  = 'suspended';
@@ -165,17 +176,17 @@ app.post('/create_threat_notification', authenticateToken, (req, res) => {
 
 app.get('/list_threat_notifications', authenticateToken, (req, res) => {
   let query = 'SELECT * FROM threats';
-  db.get(query, [], (err, row) => {
+  db.all(query, [], (err, rows) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-    if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    res.json({ message: 'OK', data: row });
+    if (!rows) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: rows });
   });
 });
 
-app.get('/get_threat_notification/:uuid', authenticateToken, (req, res) => {
-  const uuid = req.params.uuid;
-  const query = 'SELECT * FROM threats WHERE uuid = ?';
-  db.get(query, [uuid], (err, row) => {
+app.get('/get_threat_notification/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  const query = 'SELECT * FROM threats WHERE id = ?';
+  db.get(query, [id], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: row });
@@ -183,12 +194,12 @@ app.get('/get_threat_notification/:uuid', authenticateToken, (req, res) => {
 });
 
 app.post('/update_threat_notification', authenticateToken, (req, res) => {
-  const uuid = req.body.uuid;
+  const id = req.body.id;
   const type = req.body.type;
   const desc = req.body.desc;
   const date = req.body.date;
-  const query = 'UPDATE threats SET type = ?, desc = ?, date = ? WHERE uuid = ?';
-  db.run(query, [type, desc, date, uuid], function(err) {
+  const query = 'UPDATE threats SET type = ?, desc = ?, date = ? WHERE id = ?';
+  db.run(query, [type, desc, date, id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: null });
@@ -196,10 +207,10 @@ app.post('/update_threat_notification', authenticateToken, (req, res) => {
 });
 
 app.post('/remove_threat_notification', authenticateToken, (req, res) => {
-  const uuid = req.body.uuid;
-  if (!uuid) return res.status(400).json({ message: 'ERROR', data: 'UUID is required' });
-  const query = 'DELETE FROM threats WHERE uuid = ?';
-  db.run(query, [uuid], function(err) {
+  const id = req.body.id;
+  if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+  const query = 'DELETE FROM threats WHERE id = ?';
+  db.run(query, [id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: null });
@@ -211,7 +222,7 @@ app.post('/remove_threat_notification', authenticateToken, (req, res) => {
 // upload logs
 app.post('/upload_log', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-  const filename = req.file.filename
+  const filename = req.file.filename;
   if (!filename) return res.status(400).json({ message: 'ERROR', data: 'Filename is required' });
   const query = 'INSERT INTO logs (fname) VALUES (?)';
   db.run(query, [filename], function(err) {
@@ -222,20 +233,24 @@ app.post('/upload_log', authenticateToken, upload.single('file'), (req, res) => 
 
 app.get('/list_logs', authenticateToken, (req, res) => {
   let query = 'SELECT * FROM logs';
-  db.get(query, [], (err, row) => {
+  db.all(query, [], (err, rows) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-    if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    res.json({ message: 'OK', data: row });
+    if (!rows) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: rows });
   });
 });
 
-app.get('/get_log/:uuid', authenticateToken, (req, res) => {
-  const uuid = req.params.uuid;
-  const query = 'SELECT * FROM logs WHERE uuid = ?';
-  db.get(query, [uuid], (err, row) => {
+app.get('/get_log/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  const query = 'SELECT * FROM logs WHERE id = ?';
+  db.get(query, [id], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    res.json({ message: 'OK', data: row });
+    const p = path.join(path.resolve(), `uploads/${row.fname}`);
+    fs.readFile(p, {encoding: 'utf-8'}, (err,data) => {
+      if (!err) res.json({ message: 'OK', data: data });
+      else res.status(500).json({ message: 'ERROR', data: err });
+    });
   });
 });
 
@@ -245,10 +260,10 @@ app.get('/get_log/:uuid', authenticateToken, (req, res) => {
 
 // delete logs
 app.post('/remove_log', authenticateToken, (req, res) => {
-  const uuid = req.body.uuid;
-  if (!uuid) return res.status(400).json({ message: 'ERROR', data: 'UUID is required' });
-  const query = 'DELETE FROM logs WHERE uuid = ?';
-  db.run(query, [uuid], function(err) {
+  const id = req.body.id;
+  if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+  const query = 'DELETE FROM logs WHERE id = ?';
+  db.run(query, [id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: null });
@@ -258,21 +273,24 @@ app.post('/remove_log', authenticateToken, (req, res) => {
 // ------- ANALYSIS
 
 app.post('/analyze_log', authenticateToken, (req, res) => {
-  const uuid = req.body.uuid;
-  if (!uuid) return res.status(400).json({ message: 'ERROR', data: 'UUID is required' });
-  const query = 'SELECT * FROM logs WHERE uuid = ?';
-  db.get(query, [uuid], (err, row) => {
+  let inc = 0;
+  const id = req.body.id;
+  if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+  const query = 'SELECT * FROM logs WHERE id = ?';
+  db.get(query, [id], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
+    const p = path.join(path.resolve(), `uploads/${row.fname}`);
     const analysis_res = [];
     const readInterface = readline.createInterface({
-      input: fs.createReadStream(row.fname),
+      input: fs.createReadStream(p),
       output: process.stdout,
       console: false
     });
     readInterface.on('line', line => {
+      inc++;
       if (line.trim() === '') return;
-      analyzeLogEntry(line, analysis_res);
+      analyzeLogEntry(line, inc, analysis_res);
     });
     readInterface.on('close', () => {
       res.json({ message: 'OK', data: analysis_res });
