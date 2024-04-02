@@ -7,6 +7,7 @@ import path from 'path';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import readline from 'readline';
+import axios from 'axios';
 
 const secretKey = 'dash_super_secret_key';
 const pathToDB = 'database.db';
@@ -70,6 +71,67 @@ app.get('/healthcheck', (req, res) => {
   res.json({ message: 'OK', data: null });
 });
 
+app.post('/initiate_work', (req, res) => {
+  query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
+  db.run(query, ['admin', 'admin@dash.org', 'dashdashdash', 'gigaAdmin', 0], function(err) {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    res.json({ message: 'OK', data: this.lastID });
+  });
+});
+
+// ------ COMPANIES
+
+app.post('/register_company', authenticateToken, (req, res) => {
+  const name                  = req.body.name;
+  const email                 = req.body.email;
+  const pass                  = req.body.pass;
+  const verifyPass            = req.body.verifyPass;
+  const companyName           = req.body.companyName;
+  const companyPosition       = req.body.companyPosition;
+  const companyEmployeeAmount = req.body.companyEmployeeAmount;
+  if (!name || !email || !pass || !verifyPass || !companyName || !companyPosition || !companyEmployeeAmount) return res.status(400).json({ message: 'ERROR', data: 'All fields are required' });
+  if (pass != verifyPass) return res.status(400).json({ message: 'ERROR', data: 'Passwords do not match' });
+  let query = 'INSERT INTO companies (companyName, companyPosition, companyEmployeeAmount, approved) VALUES (?, ?, ?, ?)';
+  db.run(query, [companyName, companyPosition, companyEmployeeAmount, false], function(err) {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
+    db.run(query, [name, email, pass, 'superAdmin', this.lastID], function(err) {
+      if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+      res.json({ message: 'OK', data: this.lastID });
+    });
+  });
+});
+
+app.get('/list_companies', authenticateToken, (req, res) => {
+  let query = 'SELECT * FROM companies';
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (!rows) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: rows });
+  });
+});
+
+app.get('/get_company/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  const query = 'SELECT * FROM companies WHERE id = ?';
+  db.get(query, [id], (err, row) => {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (!row) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: row });
+  });
+});
+
+app.post('/approve_company', (req, res) => {
+  const id = req.body.id;
+  const decision  = req.body.decision;
+  if (!id || !decision) return res.status(400).json({ message: 'ERROR', data: 'All fields are required' });
+  let query = 'UPDATE companies SET approved = ? WHERE id = ?';
+  db.run(query, [id, decision], function(err) {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    res.json({ message: 'OK', data: null });
+  });
+});
+
 // ------ USERS
 
 app.post('/login', (req, res) => {
@@ -91,21 +153,23 @@ app.post('/logout', authenticateToken, (req, res) => {
 });
 
 app.post('/register', authenticateToken, (req, res) => {
-  const name  = req.body.name;
-  const email = req.body.email;
-  const pass  = req.body.pass;
-  const role  = req.body.role;
-  if (!name || !email || !pass || !role) return res.status(400).json({ message: 'ERROR', data: 'Name, email, and password are required' });
-  const query = 'INSERT INTO users (name, email, pass, role) VALUES (?, ?, ?, ?)';
-  db.run(query, [name, email, pass, role], function(err) {
+  const name      = req.body.name;
+  const email     = req.body.email;
+  const pass      = req.body.pass;
+  const role      = req.body.role;
+  const companyID = req.user.companyID;
+  if (!name || !email || !pass || !role || !companyID) return res.status(400).json({ message: 'ERROR', data: 'Name, email, and password are required' });
+  const query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
+  db.run(query, [name, email, pass, role, companyID], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     res.json({ message: 'OK', data: this.lastID });
   });
 });
 
 app.get('/list_users', authenticateToken, (req, res) => {
-  let query = 'SELECT * FROM users';
-  db.all(query, [], (err, rows) => {
+  const companyID = req.user.companyID;
+  let query = 'SELECT * FROM users WHERE companyID = ?';
+  db.all(query, [companyID], (err, rows) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!rows) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: rows });
@@ -118,7 +182,7 @@ app.get('/get_user_profile/:id', authenticateToken, (req, res) => {
   db.get(query, [id], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    res.json({ message: 'OK', data: row });
+    res.json({ message: 'OK', data: { ...row, pass: null } });
   });
 });
 
@@ -227,18 +291,19 @@ app.post('/remove_threat_notification', authenticateToken, (req, res) => {
 // upload logs
 app.post('/upload_log', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+  const companyID = req.user.companyID;
   const filename = req.file.filename;
   if (!filename) return res.status(400).json({ message: 'ERROR', data: 'Filename is required' });
-  const query = 'INSERT INTO logs (fname) VALUES (?)';
-  db.run(query, [filename], function(err) {
+  const query = 'INSERT INTO logs (fname, companyID) VALUES (?, ?)';
+  db.run(query, [filename, companyID], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     res.json({ message: 'OK', data: this.lastID });
   });
 });
 
 app.get('/list_logs', authenticateToken, (req, res) => {
-  let query = 'SELECT * FROM logs';
-  db.all(query, [], (err, rows) => {
+  let query = 'SELECT * FROM logs WHERE companyID = ?';
+  db.all(query, [req.user.companyID], (err, rows) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!rows) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: rows });
@@ -275,41 +340,115 @@ app.post('/remove_log', authenticateToken, (req, res) => {
   });
 });
 
+// ------- SURICATA API
+
+app.post('/add_endpoint', authenticateToken, (req, res) => {
+  const url = req.body.url;
+  const companyID = req.user.companyID;
+  if(!url) return res.status(400).json({ message: 'ERROR', data: 'URL is required' });
+  const query = 'INSERT INTO apis (url, companyID) VALUES (?, ?)';
+  db.run(query, [url, companyID], function(err) {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    res.json({ message: 'OK', data: this.lastID });
+  });
+});
+
+app.get('/list_endpoints', authenticateToken, (req, res) => {
+  const companyID = req.user.companyID;
+  if(!url) return res.status(400).json({ message: 'ERROR', data: 'URL is required' });
+  const query = 'SELECT * FROM apis WHERE companyID = ?';
+  db.all(query, [companyID], (err, rows) => {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (!rows) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: rows });
+  });
+});
+
+app.get('/get_endpoint/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  if(!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+  const query = 'SELECT * FROM apis WHERE id = ?';
+  db.get(query, [id], (err, row) => {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (!row) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: row });
+  });
+});
+
+app.post('/remove_endpoint', authenticateToken, (req, res) => {
+  const id = req.body.id;
+  if(!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+  const query = 'DELETE FROM apis WHERE id = ?';
+  db.run(query, [id], function(err) {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
+    res.json({ message: 'OK', data: null });
+  });
+});
+
 // ------- ANALYSIS
 
 app.post('/analyze_log', authenticateToken, (req, res) => {
   let inc = 0;
   const id = req.body.id;
   if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
-  const query = 'SELECT * FROM logs WHERE id = ?';
+  let query = 'SELECT * FROM logs WHERE id = ?';
   db.get(query, [id], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    const p = path.join(path.resolve(), `uploads/${row.fname}`);
-    const analysis_res = [];
-    const readInterface = readline.createInterface({
-      input: fs.createReadStream(p),
-      output: process.stdout,
-      console: false
+    query = 'SELECT * FROM autodetected WHERE logID = ?';
+    db.all(query, [id], (err, rows) => {
+      if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+      if (!rows) {
+        const p = path.join(path.resolve(), `uploads/${row.fname}`);
+        const analysis_res = [];
+        const readInterface = readline.createInterface({
+          input: fs.createReadStream(p),
+          output: process.stdout,
+          console: false
+        });
+        readInterface.on('line', line => {
+          inc++;
+          if (line.trim() === '') return;
+          analyzeLogEntry(line, inc, analysis_res);
+        });
+        readInterface.on('close', () => {
+          db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            const stmt = db.prepare('INSERT INTO autodetected (logID, threatType, sourceLine, lineNumber) VALUES (?, ?, ?, ?)');
+            analysis_res.forEach(obj => stmt.run(id, obj.type, obj.line, obj.number));
+            db.run('COMMIT', (err) => {
+              if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+            });
+            stmt.finalize();
+          });
+          res.json({ message: 'OK', data: analysis_res });
+        });
+      } else return res.json({ message: 'OK', data: rows });
     });
-    readInterface.on('line', line => {
-      inc++;
-      if (line.trim() === '') return;
-      analyzeLogEntry(line, inc, analysis_res);
-    });
-    readInterface.on('close', () => {
-      res.json({ message: 'OK', data: analysis_res });
-    });
+  });
+});
+
+app.post('/analyze_api', authenticateToken, (req, res) => {
+  const id = req.body.id;
+  if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+  let query = 'SELECT * FROM apis WHERE id = ?';
+  db.get(query, [id], async (err, row) => {
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (!row) return res.status(404).json({ message: 'NULL', data: null });
+    const response = await axios.get(`${row.url}/eve.json`);
+    const logs = response.data;
+    return res.json(logs);
   });
 });
 
 // ------- PROMO
 
 app.get('/promo_data', (req, res) => {
-  const amountOfCompanies = 'SELECT * FROM users WHERE role = "admin"';
+  const amountOfCompanies = 'SELECT * FROM users WHERE role = ?';
   const amountOfThreats = 'SELECT * FROM threats';
   let amountOfAttacks = 0;
-  db.all(amountOfCompanies, [], (err, companies) => {
+  db.all(amountOfCompanies, ['admin'], (err, companies) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!companies) return res.status(404).json({ message: 'NULL', data: null });
     db.all(amountOfThreats, [], (err, threats) => {
