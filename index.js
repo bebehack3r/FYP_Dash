@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { json } from 'express';
 import cors from 'cors';
@@ -30,13 +31,12 @@ import {
   analyze as analyzeAPI
 } from './entities/suricata/index.js';
 
-const secretKey = 'dash_super_secret_key';
-const pathToDB = 'database.db';
+const secretKey = process.env.SECRET_KEY;
 const app = express();
 app.use(cors());
 app.use(json());
-const port = 8000;
-const db = new sqlite3.Database(pathToDB);
+const port = process.env.DEVEL_PORT;
+const db = new sqlite3.Database(process.env.PATH_TO_DB);
 
 // ------ FILESTORAGE
 const storage = multer.diskStorage({
@@ -61,7 +61,7 @@ function authenticateToken(req, res, next) {
   if (!token) return res.status(401).json({ message: 'ERROR', data: 'Unauthorized' });
   jwt.verify(token, secretKey, (err, decoded) => {
     if (err) return res.status(403).json({ message: 'ERROR', data: 'Forbidden' });
-    req.user = decoded.user;
+    req.user = decoded;
     next();
   });
 };
@@ -78,8 +78,8 @@ app.get('/healthcheck', (req, res) => {
   res.json({ message: 'OK', data: null });
 });
 // ------ INIT
-app.post('/initiate_work', (req, res) => {
-  query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
+app.get('/initiate_work', (req, res) => {
+  const query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
   db.run(query, ['admin', 'admin@dash.org', 'dashdashdash', 'gigaAdmin', 0], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     res.json({ message: 'OK', data: this.lastID });
