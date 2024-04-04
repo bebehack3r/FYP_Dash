@@ -54,7 +54,7 @@ function supplyDatabase(req, res, next) {
   if(!db) return res.status(401).json({ message: 'ERROR', data: 'Backend down' });
   req.databaseConnection = db;
   next();
-}
+};
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -110,6 +110,7 @@ app.post('/register_company',             authenticateToken, supplyDatabase, cre
 app.get('/list_companies',                authenticateToken, supplyDatabase, listCompanies);
 app.get('/get_company/:id',               authenticateToken, supplyDatabase, getCompany);
 app.post('/approve_company',                                 supplyDatabase, approveCompany);
+
 app.post('/login',                                           supplyDatabase, loginUser);
 app.post('/logout',                       authenticateToken, supplyDatabase, logoutUser);
 app.post('/register',                     authenticateToken, supplyDatabase, createUser);
@@ -118,16 +119,19 @@ app.get('/get_user_profile/:id',          authenticateToken, supplyDatabase, get
 app.post('/update_user_profile',          authenticateToken, supplyDatabase, updateUser);
 app.post('/update_user_role',             authenticateToken, supplyDatabase, promoteUser);
 app.post('/suspend_user_profile',         authenticateToken, supplyDatabase, suspendUser);
+
 app.post('/create_threat_notification',   authenticateToken, supplyDatabase, createThreat);
 app.get('/list_threat_notifications/:id', authenticateToken, supplyDatabase, listThreats);
 app.get('/get_threat_notification/:id',   authenticateToken, supplyDatabase, getThreat);
 app.post('/update_threat_notification',   authenticateToken, supplyDatabase, updateThreat);
 app.post('/remove_threat_notification',   authenticateToken, supplyDatabase, removeThreat);
+
 app.post('/upload_log',                   authenticateToken, supplyDatabase, upload.single('file'), createLog);
 app.get('/list_logs',                     authenticateToken, supplyDatabase, listLogs);
 app.get('/get_log/:id',                   authenticateToken, supplyDatabase, getLog);
 app.post('/remove_log',                   authenticateToken, supplyDatabase, removeLog);
 app.post('/analyze_log',                  authenticateToken, supplyDatabase, analyzeLogs);
+
 app.post('/add_endpoint',                 authenticateToken, supplyDatabase, createAPI);
 app.get('/list_endpoints',                authenticateToken, supplyDatabase, listAPIs);
 app.get('/get_endpoint/:id',              authenticateToken, supplyDatabase, getAPI);
