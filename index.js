@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { json } from 'express';
+import path from 'path';
 import cors from 'cors';
 import sqlite3 from 'sqlite3';
 import multer from 'multer';
@@ -36,7 +37,7 @@ const secretKey = process.env.SECRET_KEY;
 const app = express();
 app.use(cors());
 app.use(json());
-app.use(requestIp.mw());
+// app.use(requestIp.mw());
 const port = process.env.DEVEL_PORT;
 const db = new sqlite3.Database(process.env.PATH_TO_DB);
 
@@ -85,6 +86,10 @@ function logRequest(req, res, next) {
 // ------ HEALTHCHECK
 app.get('/healthcheck', supplyDatabase, logRequest, (req, res) => {
   res.json({ message: 'OK', data: null });
+});
+// ------ SAMPLE EVE
+app.get('/eve.json', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'eve.json'));
 });
 // ------ INIT
 app.get('/initiate_work', supplyDatabase, logRequest, (req, res) => {
@@ -141,7 +146,7 @@ app.get('/get_log/:id',                   authenticateToken, supplyDatabase, log
 app.post('/remove_log',                   authenticateToken, supplyDatabase, logRequest, removeLog);
 app.post('/analyze_log',                  authenticateToken, supplyDatabase, logRequest, analyzeLogs);
 
-app.post('/add_endpoint',                 authenticateToken, supplyDatabase, logRequest, createAPI);
+app.post('/add_endpoint',                 authenticateToken, supplyDatabase, createAPI);
 app.get('/list_endpoints',                authenticateToken, supplyDatabase, logRequest, listAPIs);
 app.get('/get_endpoint/:id',              authenticateToken, supplyDatabase, logRequest, getAPI);
 app.post('/remove_endpoint',              authenticateToken, supplyDatabase, logRequest, removeAPI);
