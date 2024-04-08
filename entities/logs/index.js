@@ -33,12 +33,14 @@ const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
   const spots = [];
   for(let i = 0; i < defaultChecks.length; i++) {
     if(logEntry.includes(defaultChecks[i].entry)) {
-      console.log('HUH?');
+      const reg = /(.*)\[\*\*\] \[[ 0-9:]*\] (.*) \[\*\*\](.*)\{.*\}(.*)->([ 0-9.:]*)(.*)/;
+      const matches = logEntry.match(reg);
+      const r = `${matches[matches.length-1]} ${matches[2]} ${matches[3]}`;
       const ip = filterIP(logEntry);
       console.log(ip);
       spots.push({ 
         threatType: defaultChecks[i].type, 
-        sourceLine: logEntry, 
+        sourceLine: r,
         lineNumber: lineNum,
         ipAddress: ip,
         ipLocation: await fetchIPLocation(ip)
