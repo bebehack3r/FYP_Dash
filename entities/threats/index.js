@@ -1,12 +1,12 @@
 export const create = (req, res) => {
-  const { logID, type, desc } = req.body;
+  const { uuid, type, desc } = req.body;
   const date  = Date.now();
   if (!type || !desc) return res.status(400).json({ message: 'ERROR', data: 'Type and description are required' });
   const query = 'INSERT INTO threats (type, description, date) VALUES (?, ?, ?)';
   req.databaseConnection.run(query, [type, desc, date], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-    const query = 'INSERT INTO threatLog (threatID, logID) VALUES (?, ?)';
-    req.databaseConnection.run(query, [this.lastID, logID], function(err) {
+    const query = 'INSERT INTO threatSource (threatID, uuid) VALUES (?, ?)';
+    req.databaseConnection.run(query, [this.lastID, uuid], function(err) {
       if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
       res.json({ message: 'OK', data: this.lastID });
     });
@@ -16,7 +16,7 @@ export const create = (req, res) => {
 export const list = (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
-  let query = 'SELECT * FROM threats WHERE id IN (SELECT threatID FROM threatLog WHERE logID = ?)';
+  let query = 'SELECT * FROM threats WHERE id IN (SELECT threatID FROM threatSource WHERE uuid = ?)';
   req.databaseConnection.all(query, [id], (err, rows) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!rows) return res.status(404).json({ message: 'NULL', data: null });

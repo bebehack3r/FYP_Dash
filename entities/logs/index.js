@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 import ipLocation from 'iplocation';
+import { v4 as uuidv4 } from 'uuid';
 
 const filterIP = (line) => {
   const ipReg = /\} (.*) \-\>/;
@@ -52,8 +53,8 @@ export const create = (req, res) => {
   const { companyID } = req.user;
   const { filename } = req.file;
   if (!filename) return res.status(400).json({ message: 'ERROR', data: 'Filename is required' });
-  const query = 'INSERT INTO logs (fname, companyID) VALUES (?, ?)';
-  req.databaseConnection.run(query, [filename, companyID], function(err) {
+  const query = 'INSERT INTO logs (fname, companyID, uuid) VALUES (?, ?, ?)';
+  req.databaseConnection.run(query, [filename, companyID, uuidv4()], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     res.json({ message: 'OK', data: this.lastID });
   });

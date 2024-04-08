@@ -1,12 +1,12 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 export const create = (req, res) => {
-  console.log(req.body);
   const { url } = req.body;
   const { companyID } = req.user;
   if(!url) return res.status(400).json({ message: 'ERROR', data: 'URL is required' });
-  const query = 'INSERT INTO apis (url, companyID) VALUES (?, ?)';
-  req.databaseConnection.run(query, [url, companyID], function(err) {
+  const query = 'INSERT INTO apis (url, companyID, uuid) VALUES (?, ?, ?)';
+  req.databaseConnection.run(query, [url, companyID, uuidv4()], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     res.json({ message: 'OK', data: this.lastID });
   });
