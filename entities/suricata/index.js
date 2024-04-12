@@ -45,47 +45,80 @@ export const remove = (req, res) => {
   });
 };
 
-export const analyze = (req, res) => {
-  const { id } = req.body;
-  if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+export const analyze = async (req, res) => {
+  try{
+    const { id } = req.body;
+    if (!id) {
+    return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
+  }
   const query = 'SELECT * FROM apis WHERE id = ?';
   req.databaseConnection.get(query, [id], async (err, row) => {
-    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-    if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    const alerts = [];
+    if (err) {
+      return res.status(500).json({ message: 'ERROR', data: err.message });
+    }
+    if (!row) {
+      return res.status(404).json({ message: 'NULL', data: null });
+    }
+    
+    
     const response = await axios.get(`${row.url}/eve.json`);
     const logs = response.data;
-    const jsons = logs.split('\n');
-    jsons.forEach(raw => {
-      const entry = JSON.parse(raw);
-      const ipAddress = entry.src_ip;
-      const alert = entry.alert;
-      if(alert) {
-        const signature = alert.signature;
-        const types = [
-          { entry: 'ET SCAN', type: 'scan' },
-          { entry: 'ET POLICY', type: 'policy' },
-          { entry: 'ET INFO', type: 'sus' }
-        ];
-        types.forEach(type => {
-          if(signature.includes(type.entry)) {
-            const threatType = type.type;
-            const sourceLine = signature;
-            const logID = id;
-            const location = null;
-            const lineNumber = 0;
-            alerts.push({
-              logID,
-              threatType,
-              sourceLine,
-              lineNumber,
-              ipAddress,
-              ipLocation: location
-            });
-          }
-        });
-      }
+    //peform detailed analysis on the logs
+    const analyzedData = analyzeLogs(logs);
+
+    //Store the analyzed data to the database or perform further processing
+    //for demo purpose,, assume storing the analyzed data in a variable
+    const alerts = analyzedData.filter(log => log.event_type === 'alert');
+    const droppedPackets = analyzedData.filter(log => log.event_type === 'drop');
+
+    // Generate visualizations or reports summarizing the findings
+    const visualizationData = generateVisualizationData(analyzedData);
+    res.json({ message: 'OK', data: { alerts: alerts.length, droppedPackets: droppedPackets.length, visualizationData } });
     });
-    res.json({ message: 'OK', data: { alerts: alerts, contents: logs } });
+  } catch (error) {
+    res.status(500).json({ message: 'ERROR', data: error.message });
+  }
+};
+
+// Function to perform detailed analysis on the logs and extract relevant information
+const analyzeLogs = (logs) => {
+  return logs.map(entry => {
+    const { timestamp, src_ip, dest_ip, proto, alert, event_type } = entry;
+    let details = {};
+    if (alert) {
+      const { signature, category, severity } = alert;
+      details = { signature, category, severity };
+    }
+    return {
+      timestamp,
+      src_ip,
+      dest_ip,
+      proto,
+      event_type,
+      alert: details
+    };
   });
+};
+
+const generateVisualizationData = (analyzedData) => {
+  // Initialize variables to store summary data
+  let alertCounts = {};
+  let totalAlerts = 0;
+
+  // Count the number of alerts for each category
+  analyzedData.forEach(log => {
+    if (log.event_type === 'alert') {
+      const category = log.alert.category || 'Uncategorized';
+      alertCounts[category] = (alertCounts[category] || 0) + 1;
+      totalAlerts++;
+    }
+  });
+
+  // Generate a summary report
+  const summaryReport = {
+    totalAlerts,
+    alertCounts
+  };
+
+  return summaryReport;
 };
