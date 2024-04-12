@@ -39,6 +39,7 @@ app.use(cors());
 app.use(json());
 // app.use(requestIp.mw());
 const port = process.env.DEVEL_PORT;
+console.log(process.env.PATH_TO_DB);
 const db = new sqlite3.Database(process.env.PATH_TO_DB);
 
 // ------ FILESTORAGE
