@@ -24,31 +24,79 @@ const fetchIPLocation = async (source) => {
   }
 };
 
+//	const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
+//	  const defaultChecks = [
+//		{ entry: 'ET SCAN', type: 'scan' },
+//		{ entry: 'ET POLICY', type: 'policy' },
+//		{ entry: 'ET INFO', type: 'sus' }
+//	  ];
+//	  const spots = [];
+//	  for(let i = 0; i < defaultChecks.length; i++) {
+//		if(logEntry.includes(defaultChecks[i].entry)) {
+//		  const reg = /(.*)\[\*\*\] \[[ 0-9:]*\] (.*) \[\*\*\](.*)\{.*\}(.*)->([ 0-9.:]*)(.*)/;
+//		  const matches = logEntry.match(reg);
+//		  const r = `${matches[matches.length-1]} ${matches[2]} ${matches[3]}`;
+//		  const ip = filterIP(logEntry);
+//		  console.log(ip);
+//		  spots.push({ 
+//			threatType: defaultChecks[i].type, 
+//			sourceLine: r,
+//			lineNumber: lineNum,
+//			ipAddress: ip,
+//			ipLocation: await fetchIPLocation(ip)
+//		  });
+//		}
+//	  };
+//	  spots.map(spot => { if(spot) analysis_res.push(spot) });
+//	};
+
 const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
-  const defaultChecks = [
-    { entry: 'ET SCAN', type: 'scan' },
-    { entry: 'ET POLICY', type: 'policy' },
-    { entry: 'ET INFO', type: 'sus' }
-  ];
-  const spots = [];
-  for(let i = 0; i < defaultChecks.length; i++) {
-    if(logEntry.includes(defaultChecks[i].entry)) {
-      const reg = /(.*)\[\*\*\] \[[ 0-9:]*\] (.*) \[\*\*\](.*)\{.*\}(.*)->([ 0-9.:]*)(.*)/;
-      const matches = logEntry.match(reg);
-      const r = `${matches[matches.length-1]} ${matches[2]} ${matches[3]}`;
-      const ip = filterIP(logEntry);
-      console.log(ip);
-      spots.push({ 
-        threatType: defaultChecks[i].type, 
-        sourceLine: r,
-        lineNumber: lineNum,
-        ipAddress: ip,
-        ipLocation: await fetchIPLocation(ip)
-      });
+  try {
+    const logData = JSON.parse(logEntry); // Parse the log entry as JSON data
+
+    // Extract relevant fields from the parsed JSON data
+    const {
+      EventReceivedTime,
+      SourceModuleName,
+      SourceModuleType,
+      EventName,
+      Classification,
+      EventTime,
+      SourceIPAddress,
+      DestinationIPAddress
+    } = logData;
+
+    // Determine threat type based on Classification
+    let threatType;
+    if (Classification === 'Generic ICMP event') {
+      threatType = 'ICMP'; // Set threat type to 'ICMP' for Generic ICMP events
+    } else {
+      threatType = 'Unknown'; // Default to 'Unknown' if threat type cannot be determined
     }
-  };
-  spots.map(spot => { if(spot) analysis_res.push(spot) });
+
+    // Construct the analysis result object
+    const analysisResult = {
+      threatType: threatType,
+      sourceLine: EventName,
+      lineNumber: lineNum,
+      ipAddress: SourceIPAddress,
+      ipLocation: await fetchIPLocation(SourceIPAddress), // Assuming async IP location lookup
+      eventReceivedTime: EventReceivedTime,
+      sourceModuleName: SourceModuleName,
+      sourceModuleType: SourceModuleType,
+      eventTime: EventTime,
+      destinationIPAddress: DestinationIPAddress
+    };
+
+    // Push the analysis result into the analysis_res array
+    analysis_res.push(analysisResult);
+  } catch (error) {
+    console.error('Error parsing or analyzing log entry:', error);
+    // Handle error (e.g., log or throw error)
+  }
 };
+
+
 
 export const create = (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
