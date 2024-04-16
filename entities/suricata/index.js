@@ -101,6 +101,7 @@ export const analyze = (req, res) => {
         message: 'OK', 
         data: { 
           alerts: alerts, 
+          contents: logs,
           topThreats: topThreats,
           ipCounts: ipCounts
         } 
