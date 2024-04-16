@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
+
 export const create = (req, res) => {
   const { url } = req.body;
   const { companyID } = req.user;
@@ -45,80 +46,79 @@ export const remove = (req, res) => {
   });
 };
 
-export const analyze = async (req, res) => {
-  try{
-    const { id } = req.body;
-    if (!id) {
-    return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
-  }
+export const analyze = (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
   const query = 'SELECT * FROM apis WHERE id = ?';
   req.databaseConnection.get(query, [id], async (err, row) => {
-    if (err) {
-      return res.status(500).json({ message: 'ERROR', data: err.message });
-    }
-    if (!row) {
-      return res.status(404).json({ message: 'NULL', data: null });
-    }
-    
-    
-    const response = await axios.get(`${row.url}/eve.json`);
-    const logs = response.data;
-    //peform detailed analysis on the logs
-    const analyzedData = analyzeLogs(logs);
+    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+    if (!row) return res.status(404).json({ message: 'NULL', data: null });
 
-    //Store the analyzed data to the database or perform further processing
-    //for demo purpose,, assume storing the analyzed data in a variable
-    const alerts = analyzedData.filter(log => log.event_type === 'alert');
-    const droppedPackets = analyzedData.filter(log => log.event_type === 'drop');
+    const alerts = [];
+    const threatCounts = {};
+    const ipCounts = {};
+    const topThreats = {};
 
-    // Generate visualizations or reports summarizing the findings
-    const visualizationData = generateVisualizationData(analyzedData);
-    res.json({ message: 'OK', data: { alerts: alerts.length, droppedPackets: droppedPackets.length, visualizationData } });
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'ERROR', data: error.message });
+    try {
+      const response = await axios.get(`${row.url}/eve.json`);
+      const logs = response.data;
+      const jsons = logs.split('\n');
+
+      for (const raw of jsons) {
+        const entry = JSON.parse(raw);
+        const ipAddress = entry.src_ip;
+        const alert = entry.alert;
+
+        // Count occurrences of IP addresses
+        ipCounts[ipAddress] = (ipCounts[ipAddress] || 0) + 1;
+
+        if (alert) {
+          const signature = alert.signature;
+          const severity = alert.severity;
+          threatCounts[signature] = (threatCounts[signature] || 0) + severity;
+          alerts.push({
+            timestamp: entry.timestamp,
+            src_ip: entry.src_ip,
+            dest_ip: entry.dest_ip,
+            signature: alert.signature,
+            severity: alert.severity,
+            severity_level: getSeverityLevel(severity) // Adding severity level
+          });
+        }
+      }
+
+
+      console.log("Alerts:", alerts);
+
+      // Calculate top threats
+      Object.entries(threatCounts)
+        .sort(([, count1], [, count2]) => count2 - count1)
+        .forEach(([signature, count]) => {
+          topThreats[signature] = count;
+        });
+
+      res.json({ 
+        message: 'OK', 
+        data: { 
+          alerts: alerts, 
+          topThreats: topThreats,
+          ipCounts: ipCounts
+        } 
+      });
+    } catch (error) {
+      console.error("Error fetching or processing data:", error);
+      res.status(500).json({ message: 'ERROR', data: error.message });
+    }
+  });
+};
+
+//function to get severity level based on severity score
+const getSeverityLevel = (severity) => {
+  if (severity >= 7) {
+    return 'High';
+  } else if (severity >= 4) {
+    return 'Medium';
+  } else {
+    return 'Low';
   }
-};
-
-// Function to perform detailed analysis on the logs and extract relevant information
-const analyzeLogs = (logs) => {
-  return logs.map(entry => {
-    const { timestamp, src_ip, dest_ip, proto, alert, event_type } = entry;
-    let details = {};
-    if (alert) {
-      const { signature, category, severity } = alert;
-      details = { signature, category, severity };
-    }
-    return {
-      timestamp,
-      src_ip,
-      dest_ip,
-      proto,
-      event_type,
-      alert: details
-    };
-  });
-};
-
-const generateVisualizationData = (analyzedData) => {
-  // Initialize variables to store summary data
-  let alertCounts = {};
-  let totalAlerts = 0;
-
-  // Count the number of alerts for each category
-  analyzedData.forEach(log => {
-    if (log.event_type === 'alert') {
-      const category = log.alert.category || 'Uncategorized';
-      alertCounts[category] = (alertCounts[category] || 0) + 1;
-      totalAlerts++;
-    }
-  });
-
-  // Generate a summary report
-  const summaryReport = {
-    totalAlerts,
-    alertCounts
-  };
-
-  return summaryReport;
 };
