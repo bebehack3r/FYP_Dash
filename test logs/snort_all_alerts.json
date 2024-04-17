@@ -1,0 +1,76 @@
+[
+	{
+	  "EventReceivedTime": "2022-06-18T14:02:06.385133+03:00",
+	  "SourceModuleName": "snort_logs",
+	  "SourceModuleType": "im_file",
+	  "EventName": "ICMP Packet",
+	  "Classification": "Generic ICMP event",
+	  "EventTime": "2022-06-18T14:02:05.954858+03:00",
+	  "SourceIPAddress": "192.168.1.6",
+	  "DestinationIPAddress": "192.168.1.2"
+	},
+	{
+	  "EventReceivedTime": "2022-06-17T22:28:49.917456+03:00",
+	  "SourceModuleName": "snort_logs",
+	  "SourceModuleType": "im_file",
+	  "EventName": "ICMP flood",
+	  "Classification": "Generic ICMP event",
+	  "EventTime": "2022-06-17T22:28:49.269236+03:00",
+	  "SourceIPAddress": "143.181.31.216",
+	  "DestinationIPAddress": "192.168.1.6"
+	},
+	{
+	  "EventReceivedTime": "2022-06-17T21:53:38.799434+03:00",
+	  "SourceModuleName": "snort_logs",
+	  "SourceModuleType": "im_file",
+	  "EventName": "Possible DoS Attack Type : SYN flood",
+	  "Classification": "Attempted Denial of Service",
+	  "EventTime": "2022-06-17T21:53:38.555249+03:00",
+	  "SourceIPAddress": "98.137.240.250",
+	  "SourcePort": 37396,
+	  "DestinationIPAddress": "192.168.1.6",
+	  "DestinationPort": 80
+	},
+	{
+	  "EventReceivedTime": "2024-04-12T09:15:30Z",
+	  "SourceModuleName": "snort_logs",
+	  "SourceModuleType": "im_file",
+	  "EventName": "Possible DoS Attack Type : SYN flood",
+	  "Classification": "Attempted Denial of Service",
+	  "EventTime": "2022-06-17T21:53:38.555249+03:00",
+	  "SourceIPAddress": "98.137.240.250",
+	  "SourcePort": 37396,
+	  "DestinationIPAddress": "192.168.1.6",
+	  "DestinationPort": 80
+	},
+	{
+	  "EventReceivedTime": "2022-06-18T14:02:06.385133+03:00",
+	  "SourceModuleName": "snort_logs",
+	  "SourceModuleType": "im_file",
+	  "EventName": "Malicious File Execution",
+	  "Classification": "Malware Detection",
+	  "EventTime": "2022-06-18T14:02:05.954858+03:00",
+	  "SourceIPAddress": "192.168.1.10",
+	  "DestinationIPAddress": "192.168.1.2"
+	},
+	{
+	  "EventReceivedTime": "2022-06-17T22:28:49.917456+03:00",
+	  "SourceModuleName": "snort_logs",
+	  "SourceModuleType": "im_file",
+	  "EventName": "SQL Injection Attempt",
+	  "Classification": "Exploit Attempt",
+	  "EventTime": "2022-06-17T22:28:49.269236+03:00",
+	  "SourceIPAddress": "10.0.0.5",
+	  "DestinationIPAddress": "192.168.1.6"
+	},
+	{
+	  "EventReceivedTime": "2022-06-17T21:53:38.799434+03:00",
+	  "SourceModuleName": "snort_logs",
+	  "SourceModuleType": "im_file",
+	  "EventName": "Unauthorized Access to Admin Panel",
+	  "Classification": "Policy Violation",
+	  "EventTime": "2022-06-17T21:53:38.555249+03:00",
+	  "SourceIPAddress": "192.168.0.20",
+	  "DestinationIPAddress": "192.168.1.8"
+	}
+]
