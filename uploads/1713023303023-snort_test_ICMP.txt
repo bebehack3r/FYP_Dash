@@ -1,0 +1,10 @@
+{
+  "EventReceivedTime":"2022-06-18T14:02:06.385133+03:00",
+  "SourceModuleName":"snort_logs",
+  "SourceModuleType":"im_file",
+  "EventName":"ICMP Packet",
+  "Classification":"Generic ICMP event",
+  "EventTime":"2022-06-18T14:02:05.954858+03:00",
+  "SourceIPAddress":"192.168.1.6",
+  "DestinationIPAddress":"192.168.1.2"
+}

@@ -1,0 +1,58 @@
+[
+    {
+        "timestamp": "2024-04-12T09:15:30Z",
+        "src_ip": "192.168.1.101",
+        "dest_ip": "10.0.0.5",
+        "protocol": "TCP",
+        "src_port": 56789,
+        "dest_port": 443,
+        "alert": {
+            "action": "blocked",
+            "signature_id": 2001,
+            "signature": "ET MALWARE Suspicious DNS Query",
+            "category": "Malware Detection"
+        }
+    },
+    {
+        "timestamp": "2024-04-12T11:45:20Z",
+        "src_ip": "172.16.0.10",
+        "dest_ip": "8.8.8.8",
+        "protocol": "UDP",
+        "src_port": 1234,
+        "dest_port": 53,
+        "alert": {
+            "action": "alerted",
+            "signature_id": 3002,
+            "signature": "ET EXPLOIT Possible Shellshock Exploit Attempt",
+            "category": "Exploit Attempt"
+        }
+    },
+    {
+        "timestamp": "2024-04-12T14:20:55Z",
+        "src_ip": "10.1.1.100",
+        "dest_ip": "192.168.2.50",
+        "protocol": "TCP",
+        "src_port": 3389,
+        "dest_port": 3389,
+        "alert": {
+            "action": "blocked",
+            "signature_id": 4003,
+            "signature": "ET POLICY Remote Desktop Protocol (RDP) Connection Attempt",
+            "category": "Policy Violation"
+        }
+    },
+    {
+        "timestamp": "2024-04-12T16:55:10Z",
+        "src_ip": "192.168.3.20",
+        "dest_ip": "8.8.4.4",
+        "protocol": "ICMP",
+        "src_port": null,
+        "dest_port": null,
+        "alert": {
+            "action": "alerted",
+            "signature_id": 5004,
+            "signature": "ET POLICY ICMP Echo Reply from Unusual Source",
+            "category": "Suspicious Activity"
+        }
+    }
+]
