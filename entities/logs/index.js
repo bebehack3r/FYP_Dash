@@ -1,14 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import readline from 'readline';
 import ipLocation from 'iplocation';
 import { v4 as uuidv4 } from 'uuid';
-
-const filterIP = (line) => {
-  const ipReg = /\} (.*) \-\>/;
-  const ipAddr = line.match(ipReg);
-  return ipAddr[1];
-};
 
 const fetchIPLocation = async (source) => {
   const ip = source.split(':')[0];
@@ -52,8 +45,6 @@ const fetchIPLocation = async (source) => {
 
 const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
   try {
-    const logData = JSON.parse(logEntry); // Parse the log entry as JSON data
-
     // Extract relevant fields from the parsed JSON data
     const {
       EventReceivedTime,
@@ -64,14 +55,12 @@ const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
       EventTime,
       SourceIPAddress,
       DestinationIPAddress
-    } = logData;
+    } = logEntry;
 
     // Determine threat type based on Classification
-    let threatType;
+    let threatType  = 'Unknown';
     if (Classification === 'Generic ICMP event') {
       threatType = 'ICMP'; // Set threat type to 'ICMP' for Generic ICMP events
-    } else {
-      threatType = 'Unknown'; // Default to 'Unknown' if threat type cannot be determined
     }
 
     // Construct the analysis result object
@@ -95,8 +84,6 @@ const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
     // Handle error (e.g., log or throw error)
   }
 };
-
-
 
 export const create = (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
@@ -147,41 +134,29 @@ export const remove = (req, res) => {
 
 export const analyze = (req, res) => {
   let inc = 0;
+  const analysis_res = [];
   const { id } = req.body;
   if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
   let query = 'SELECT * FROM logs WHERE id = ?';
   req.databaseConnection.get(query, [id], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
-    query = 'SELECT * FROM autodetected WHERE logID = ?';
-    req.databaseConnection.all(query, [id], (err, rows) => {
-      if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-      if (!rows.length) {
-        const p = path.join(path.resolve(), `uploads/${row.fname}`);
-        const analysis_res = [];
-        const readInterface = readline.createInterface({
-          input: fs.createReadStream(p),
-          output: process.stdout,
-          console: false
-        });
-        readInterface.on('line', line => {
-          inc++;
-          if (line.trim() === '') return;
-          analyzeLogEntry(line, inc, analysis_res);
-        });
-        readInterface.on('close', () => {
-          req.databaseConnection.serialize(() => {
-            req.databaseConnection.run('BEGIN TRANSACTION');
-            const stmt = req.databaseConnection.prepare('INSERT INTO autodetected (logID, threatType, sourceLine, lineNumber, ipAddress, ipLocation) VALUES (?, ?, ?, ?, ?, ?)');
-            analysis_res.forEach(obj => stmt.run(id, obj.threatType, obj.sourceLine, obj.lineNumber, obj.ipAddress, obj.ipLocation));
-            req.databaseConnection.run('COMMIT', (err) => {
-              if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-            });
-            stmt.finalize();
+    const p = path.join(path.resolve(), `uploads/${row.fname}`);
+    fs.readFile(p, { encoding: 'utf-8' }, (err, contents) => {
+      if(err) return res.status(500).json({ message: 'ERROR', data: err });
+      try {
+        let parsed = JSON.parse(contents);
+        if(!Array.isArray(parsed)) parsed = [parsed]; // converting a single entry log file into an array
+        const pr = new Promise((resolve, reject) => {
+          parsed.forEach((el, i, arr) => {
+            analyzeLogEntry(el, ++inc, analysis_res);
+            if (i === arr.length -1) resolve();
           });
-          res.json({ message: 'OK', data: analysis_res });
         });
-      } else return res.json({ message: 'OK', data: rows });
+        pr.then(() => res.json({ message: 'OK', data: { contents, alerts: analysis_res }}));
+      } catch(error) {
+        return res.status(500).json({ message: 'ERROR', data: error });
+      }
     });
   });
 };

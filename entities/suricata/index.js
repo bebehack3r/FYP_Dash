@@ -46,6 +46,17 @@ export const remove = (req, res) => {
   });
 };
 
+//function to get severity level based on severity score
+const getSeverityLevel = (severity) => {
+  if (severity >= 7) {
+    return 'High';
+  } else if (severity >= 4) {
+    return 'Medium';
+  } else {
+    return 'Low';
+  }
+};
+
 export const analyze = (req, res) => {
   const { id } = req.body;
   if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
@@ -66,29 +77,27 @@ export const analyze = (req, res) => {
 
       for (const raw of jsons) {
         const entry = JSON.parse(raw);
-        const ipAddress = entry.src_ip;
-        const alert = entry.alert;
+        const { src_ip, dest_ip, alert, timestamp } = entry;
 
         // Count occurrences of IP addresses
-        ipCounts[ipAddress] = (ipCounts[ipAddress] || 0) + 1;
+        ipCounts[src_ip] = (ipCounts[src_ip] || 0) + 1;
 
         if (alert) {
-          const signature = alert.signature;
-          const severity = alert.severity;
+          const { signature, severity } = alert;
           threatCounts[signature] = (threatCounts[signature] || 0) + severity;
           alerts.push({
-            timestamp: entry.timestamp,
-            src_ip: entry.src_ip,
-            dest_ip: entry.dest_ip,
-            signature: alert.signature,
-            severity: alert.severity,
+            timestamp,
+            src_ip,
+            dest_ip,
+            signature,
+            severity,
             severity_level: getSeverityLevel(severity) // Adding severity level
           });
         }
       }
 
 
-      console.log("Alerts:", alerts);
+      // console.log('Alerts:', alerts);
 
       // Calculate top threats
       Object.entries(threatCounts)
@@ -107,19 +116,8 @@ export const analyze = (req, res) => {
         } 
       });
     } catch (error) {
-      console.error("Error fetching or processing data:", error);
-      res.status(500).json({ message: 'ERROR', data: error.message });
+      console.error('Error fetching or processing data:', error);
+      return res.status(500).json({ message: 'ERROR', data: error.message });
     }
   });
-};
-
-//function to get severity level based on severity score
-const getSeverityLevel = (severity) => {
-  if (severity >= 7) {
-    return 'High';
-  } else if (severity >= 4) {
-    return 'Medium';
-  } else {
-    return 'Low';
-  }
 };
