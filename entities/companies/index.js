@@ -1,18 +1,17 @@
 export const create = (req, res) => {
   const { 
-    name, email, pass, verifyPass,
+    fullName, email, pass,
     companyName, companyPosition, companyEmployeeAmount
   } = req.body;
   if (
-    !name || !email || !pass || !verifyPass || 
+    !fullName || !email || !pass || 
     !companyName || !companyPosition || !companyEmployeeAmount
   ) return res.status(400).json({ message: 'ERROR', data: 'All fields are required' });
-  if (pass != verifyPass) return res.status(400).json({ message: 'ERROR', data: 'Passwords do not match' });
-  let query = 'INSERT INTO companies (companyName, companyPosition, companyEmployeeAmount, approved) VALUES (?, ?, ?, ?)';
+  let query = 'INSERT INTO companies (name, position, amount, approved) VALUES (?, ?, ?, ?)';
   req.databaseConnection.run(query, [companyName, companyPosition, companyEmployeeAmount, false], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
-    req.databaseConnection.run(query, [name, email, pass, 'superAdmin', this.lastID], function(err) {
+    req.databaseConnection.run(query, [fullName, email, pass, 'superAdmin', this.lastID], function(err) {
       if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
       res.json({ message: 'OK', data: this.lastID });
     });

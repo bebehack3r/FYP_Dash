@@ -120,8 +120,8 @@ app.get('/promo_data', (req, res) => {
   });
 });
 
-app.post('/register_company',             authenticateToken, supplyDatabase, logRequest, createCompany);
-app.get('/list_companies',                authenticateToken, supplyDatabase, logRequest, listCompanies);
+app.post('/register_company',                                supplyDatabase, logRequest, createCompany);
+app.get('/list_companies',                                   supplyDatabase, logRequest, listCompanies);
 app.get('/get_company/:id',               authenticateToken, supplyDatabase, logRequest, getCompany);
 app.post('/approve_company',                                 supplyDatabase, logRequest, approveCompany);
 
