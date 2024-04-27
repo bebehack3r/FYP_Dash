@@ -71,7 +71,7 @@ export const analyze = (req, res) => {
     const topThreats = {};
 
     try {
-      let reqURL = '';
+      let reqURL = row.url;
       if(!(/https?:\/\//.test(row.url))) reqURL = `http://${row.url}`;
       if(!row.url.includes('eve.json')) reqURL = `${reqURL}/eve.json`;
       const response = await axios.get(reqURL);
