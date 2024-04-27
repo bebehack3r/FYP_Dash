@@ -32,6 +32,9 @@ import {
   get as getAPI, remove as removeAPI,
   analyze as analyzeAPI
 } from './entities/suricata/index.js';
+import {
+  list as listActivity
+} from './entities/activity/index.js';
 
 const secretKey = process.env.SECRET_KEY;
 const app = express();
@@ -78,7 +81,7 @@ function authenticateRole(roles) {
 };
 function logRequest(req, res, next) {
   const query = 'INSERT INTO activity (ip, body, endpoint, date) VALUES (?, ?, ?, ?)';
-  req.databaseConnection.run(query, [req.clientIp, req.body || req.params, req.originalUrl, Date.now()], function(err) {
+  req.databaseConnection.run(query, [req.clientIp, req.body ? JSON.stringify(req.body) : JSON.stringify(req.params), req.originalUrl, Date.now()], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     next();
   });
@@ -119,6 +122,8 @@ app.get('/promo_data', (req, res) => {
     });
   });
 });
+
+app.get('/list_access_logs',              authenticateToken, supplyDatabase,             listActivity);
 
 app.post('/register_company',                                supplyDatabase, logRequest, createCompany);
 app.get('/list_companies',                                   supplyDatabase, logRequest, listCompanies);
