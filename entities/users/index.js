@@ -24,7 +24,7 @@ export const logout = (req, res) => {
 export const create = (req, res) => {
   const { name, email, pass, role } = req.body;
   const companyID = req.user.companyID;
-  if (!name || !email || !pass || !role || !companyID) return res.status(400).json({ message: 'ERROR', data: 'Name, email, and password are required' });
+  if (!name || !email || !pass || !role) return res.status(400).json({ message: 'ERROR', data: 'Name, email, and password are required' });
   const query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
   req.databaseConnection.run(query, [name, email, pass, role, companyID], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
