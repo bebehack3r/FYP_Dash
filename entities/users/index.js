@@ -10,6 +10,7 @@ export const login = (req, res) => {
   req.databaseConnection.get(query, [email, pass], (err, row) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!row) return res.status(404).json({ message: 'NULL', data: null });
+    if (row.role === 'suspended') res.status(403).json({ message: 'ERROR', data: 'Your account has been suspended, please contact your admin for further asssistance.' });
     jwt.sign({ ...row, pass: null }, secretKey, { expiresIn: '24h' }, (err, token) => {
       if (err) return res.status(500).json({ message: 'ERROR', data: 'Failed to generate token' });
       res.json({ message: 'OK', data: token });
