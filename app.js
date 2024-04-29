@@ -37,12 +37,11 @@ import {
 } from './entities/activity/index.js';
 
 const secretKey = process.env.SECRET_KEY;
-const app = express();
+export const app = express();
 app.use(cors());
 app.use(json());
 // app.use(requestIp.mw());
-const port = process.env.DEVEL_PORT;
-const db = new sqlite3.Database(process.env.PATH_TO_DB);
+const db = new sqlite3.Database(process.env.PATH_TO_DB || 'database.db');
 
 // ------ FILESTORAGE
 const storage = multer.diskStorage({
@@ -87,12 +86,12 @@ function logRequest(req, res, next) {
   });
 };
 // ------ HEALTHCHECK
-app.get('/healthcheck', supplyDatabase, logRequest, (req, res) => {
-  res.json({ message: 'OK', data: null });
+app.get('/healthcheck', supplyDatabase, (req, res) => {
+  res.status(200).json({ message: 'OK', data: null });
 });
 // ------ SAMPLE EVE
 app.get('/eve.json', (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'eve.json'));
+  res.status(200).sendFile(path.join(process.cwd(), 'eve.json'));
 });
 // ------ INIT
 app.get('/initiate_work', supplyDatabase, logRequest, (req, res) => {
@@ -156,6 +155,3 @@ app.get('/list_endpoints',                authenticateToken, supplyDatabase, log
 app.get('/get_endpoint/:id',              authenticateToken, supplyDatabase, logRequest, getAPI);
 app.post('/remove_endpoint',              authenticateToken, supplyDatabase, logRequest, removeAPI);
 app.post('/analyze_endpoint',             authenticateToken, supplyDatabase, logRequest, analyzeAPI);
-
-app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
-
