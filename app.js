@@ -121,7 +121,7 @@ app.get('/promo_data', (req, res) => {
     });
   });
 });
-// ?
+
 app.get('/list_access_logs',              authenticateToken, supplyDatabase,             listActivity);
 
 app.post('/register_company',                                supplyDatabase, logRequest, createCompany);
