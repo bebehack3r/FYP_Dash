@@ -26,10 +26,15 @@ export const create = (req, res) => {
   const { name, email, pass, role } = req.body;
   const companyID = req.user.companyID;
   if (!name || !email || !pass || !role) return res.status(400).json({ message: 'ERROR', data: 'Name, email, and password are required' });
-  const query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
-  req.databaseConnection.run(query, [name, email, pass, role, companyID], function(err) {
-    if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-    res.json({ message: 'OK', data: this.lastID });
+  const check = 'SELECT name FROM users WHERE email = ?';
+  req.databaseConnection.get(check, [email], (cerr, row) => {
+    if(cerr) return res.status(500).json({message: 'ERROR', data: cerr.message});
+    if(row) return res.status(400).json({message: 'ERROR', data: 'E-mail already in use.'});
+    const query = 'INSERT INTO users (name, email, pass, role, companyID) VALUES (?, ?, ?, ?, ?)';
+    req.databaseConnection.run(query, [name, email, pass, role, companyID], function(err) {
+      if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+      res.json({ message: 'OK', data: this.lastID });
+    });
   });
 };
 
