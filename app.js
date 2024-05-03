@@ -103,21 +103,29 @@ app.get('/initiate_work', supplyDatabase, logRequest, (req, res) => {
 });
 // ------- PROMO
 app.get('/promo_data', (req, res) => {
-  const amountOfCompanies = 'SELECT * FROM users WHERE role = ?';
+  const amountOfCompanies = 'SELECT * FROM companies';
+  const amountOfAPIs = 'SELECT * FROM apis';
+  const amountOfLogs = 'SELECT * FROM logs';
   const amountOfThreats = 'SELECT * FROM threats';
-  let amountOfAttacks = 0;
-  db.all(amountOfCompanies, ['admin'], (err, companies) => {
+  db.all(amountOfCompanies, [], (err, companies) => {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (!companies) return res.status(404).json({ message: 'NULL', data: null });
-    db.all(amountOfThreats, [], (err, threats) => {
+    db.all(amountOfAPIs, [], (err, apis) => {
       if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
-      if (!threats) return res.status(404).json({ message: 'NULL', data: null });
-      amountOfAttacks = (threats.length * 100) / companies.length;
-      res.json({ message: 'OK', data: { 
-        companies: companies.length * 30, 
-        threats: threats.length * 200, 
-        attacks: amountOfAttacks 
-      } });
+      if (!apis) return res.status(404).json({ message: 'NULL', data: null });
+      db.all(amountOfLogs, [], (err, logs) => {
+        if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+        if (!logs) return res.status(404).json({ message: 'NULL', data: null });
+        db.all(amountOfThreats, [], (err, threats) => {
+          if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
+          if (!threats) return res.status(404).json({ message: 'NULL', data: null });
+          res.json({ message: 'OK', data: { 
+            companies: companies.length * 30, 
+            threats: (apis.length + logs.length) * 100, 
+            attacks: (apis.length + logs.length) * threats.length * 100
+          }});
+        });
+      });
     });
   });
 });
