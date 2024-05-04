@@ -59,8 +59,16 @@ const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
 
     // Determine threat type based on Classification
     let threatType  = 'Unknown';
-    if (Classification === 'Generic ICMP event') {
+    if(EventName.includes('DoS')) {
+      threatType = 'DoS/DDoS';
+    } else if(EventName.includes('SQL')) {
+      threatType = 'SQLi';
+    } else if (EventName.includes('ICMP')) {
       threatType = 'ICMP'; // Set threat type to 'ICMP' for Generic ICMP events
+    } else if(EventName.includes('Unauthorized')) {
+      threatType = 'Acc Ctrls';
+    } else {
+      threatType = Classification;
     }
 
     // Construct the analysis result object
@@ -81,6 +89,57 @@ const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
     analysis_res.push(analysisResult);
   } catch (error) {
     console.error('Error parsing or analyzing log entry:', error);
+    // Handle error (e.g., log or throw error)
+  }
+};
+
+const analyzeLogEntryRevized = async (logEntry, lineNum) => {
+  try {
+    // Extract relevant fields from the parsed JSON data
+    const {
+      EventReceivedTime,
+      SourceModuleName,
+      SourceModuleType,
+      EventName,
+      Classification,
+      EventTime,
+      SourceIPAddress,
+      DestinationIPAddress
+    } = logEntry;
+
+    // Determine threat type based on Classification
+    let threatType  = 'Unknown';
+    if(EventName.includes('DoS')) {
+      threatType = 'DoS/DDoS';
+    } else if(EventName.includes('SQL')) {
+      threatType = 'SQLi';
+    } else if (EventName.includes('ICMP')) {
+      threatType = 'ICMP'; // Set threat type to 'ICMP' for Generic ICMP events
+    } else if(EventName.includes('Unauthorized')) {
+      threatType = 'Acc Ctrls';
+    } else {
+      threatType = Classification;
+    }
+
+    // Construct the analysis result object
+    const analysisResult = {
+      threatType: threatType,
+      sourceLine: EventName,
+      lineNumber: lineNum,
+      ipAddress: SourceIPAddress,
+      ipLocation: await fetchIPLocation(SourceIPAddress), // Assuming async IP location lookup
+      eventReceivedTime: EventReceivedTime,
+      sourceModuleName: SourceModuleName,
+      sourceModuleType: SourceModuleType,
+      eventTime: EventTime,
+      destinationIPAddress: DestinationIPAddress
+    };
+
+    // Push the analysis result into the analysis_res array
+    return analysisResult;
+  } catch (error) {
+    console.error('Error parsing or analyzing log entry:', error);
+    return null;
     // Handle error (e.g., log or throw error)
   }
 };
@@ -134,7 +193,7 @@ export const remove = (req, res) => {
 
 export const analyze = (req, res) => {
   let inc = 0;
-  const analysis_res = [];
+  // const analysis_res = [];
   const { id } = req.body;
   if (!id) return res.status(400).json({ message: 'ERROR', data: 'ID is required' });
   let query = 'SELECT * FROM logs WHERE id = ?';
@@ -147,13 +206,20 @@ export const analyze = (req, res) => {
       try {
         let parsed = JSON.parse(contents);
         if(!Array.isArray(parsed)) parsed = [parsed]; // converting a single entry log file into an array
-        const pr = new Promise((resolve, reject) => {
-          parsed.forEach((el, i, arr) => {
-            analyzeLogEntry(el, ++inc, analysis_res);
-            if (i === arr.length -1) resolve();
-          });
+        const processed = parsed.map(p => analyzeLogEntryRevized(p, ++inc));
+        Promise.all(processed).then(values => {
+          console.log(values);
+          res.json({ message: 'OK', data: { contents, alerts: values }});
         });
-        pr.then(() => res.json({ message: 'OK', data: { contents, alerts: analysis_res }}));
+        // const pr = new Promise((resolve, reject) => {
+        //   parsed.forEach((el, i, arr) => {
+        //     analyzeLogEntry(el, ++inc, analysis_res);
+        //     if (analysis_res.length === parsed.length) resolve();
+        //   });
+        // });
+        // pr.then(() => {
+        //   res.json({ message: 'OK', data: { contents, alerts: analysis_res }});
+        // });
       } catch(error) {
         return res.status(500).json({ message: 'ERROR', data: error });
       }
