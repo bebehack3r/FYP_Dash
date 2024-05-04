@@ -89,9 +89,21 @@ function logRequest(req, res, next) {
 app.get('/healthcheck', supplyDatabase, (req, res) => {
   res.status(200).json({ message: 'OK', data: null });
 });
-// ------ SAMPLE EVE
+// ------ SAMPLE EVEs
 app.get('/eve.json', (req, res) => {
-  res.status(200).sendFile(path.join(process.cwd(), 'eve.json'));
+  res.status(200).sendFile(path.join(process.cwd(), '/eves/eve.json'));
+});
+app.get('/eve1.json', (req, res) => {
+  res.status(200).sendFile(path.join(process.cwd(), '/eves/eve1.json'));
+});
+app.get('/eve2.json', (req, res) => {
+  res.status(200).sendFile(path.join(process.cwd(), '/eves/eve2.json'));
+});
+app.get('/eve3.json', (req, res) => {
+  res.status(200).sendFile(path.join(process.cwd(), '/eves/eve3.json'));
+});
+app.get('/eve4.json', (req, res) => {
+  res.status(200).sendFile(path.join(process.cwd(), '/eves/eve4.json'));
 });
 // ------ INIT
 app.get('/initiate_work', supplyDatabase, logRequest, (req, res) => {

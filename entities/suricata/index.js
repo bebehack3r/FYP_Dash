@@ -73,29 +73,31 @@ export const analyze = (req, res) => {
     try {
       let reqURL = row.url;
       if(!(/https?:\/\//.test(row.url))) reqURL = `http://${row.url}`;
-      if(!row.url.includes('eve.json')) reqURL = `${reqURL}/eve.json`;
+      if(!row.url.includes('.json')) reqURL = `${reqURL}/eve.json`;
       const response = await axios.get(reqURL);
       const logs = response.data;
       const jsons = logs.split('\n');
 
       for (const raw of jsons) {
-        const entry = JSON.parse(raw);
-        const { src_ip, dest_ip, alert, timestamp } = entry;
+        if(raw.length > 0) {
+          const entry = JSON.parse(raw);
+          const { src_ip, dest_ip, alert, timestamp } = entry;
 
-        // Count occurrences of IP addresses
-        ipCounts[src_ip] = (ipCounts[src_ip] || 0) + 1;
+          // Count occurrences of IP addresses
+          ipCounts[src_ip] = (ipCounts[src_ip] || 0) + 1;
 
-        if (alert) {
-          const { signature, severity } = alert;
-          threatCounts[signature] = (threatCounts[signature] || 0) + severity;
-          alerts.push({
-            timestamp,
-            src_ip,
-            dest_ip,
-            signature,
-            severity,
-            severity_level: getSeverityLevel(severity) // Adding severity level
-          });
+          if (alert) {
+            const { signature, severity } = alert;
+            threatCounts[signature] = (threatCounts[signature] || 0) + severity;
+            alerts.push({
+              timestamp,
+              src_ip,
+              dest_ip,
+              signature,
+              severity,
+              severity_level: getSeverityLevel(severity) // Adding severity level
+            });
+          }
         }
       }
 

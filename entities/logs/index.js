@@ -43,55 +43,55 @@ const fetchIPLocation = async (source) => {
 //	  spots.map(spot => { if(spot) analysis_res.push(spot) });
 //	};
 
-const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
-  try {
-    // Extract relevant fields from the parsed JSON data
-    const {
-      EventReceivedTime,
-      SourceModuleName,
-      SourceModuleType,
-      EventName,
-      Classification,
-      EventTime,
-      SourceIPAddress,
-      DestinationIPAddress
-    } = logEntry;
+// const analyzeLogEntry = async (logEntry, lineNum, analysis_res) => {
+//   try {
+//     // Extract relevant fields from the parsed JSON data
+//     const {
+//       EventReceivedTime,
+//       SourceModuleName,
+//       SourceModuleType,
+//       EventName,
+//       Classification,
+//       EventTime,
+//       SourceIPAddress,
+//       DestinationIPAddress
+//     } = logEntry;
 
-    // Determine threat type based on Classification
-    let threatType  = 'Unknown';
-    if(EventName.includes('DoS')) {
-      threatType = 'DoS/DDoS';
-    } else if(EventName.includes('SQL')) {
-      threatType = 'SQLi';
-    } else if (EventName.includes('ICMP')) {
-      threatType = 'ICMP'; // Set threat type to 'ICMP' for Generic ICMP events
-    } else if(EventName.includes('Unauthorized')) {
-      threatType = 'Acc Ctrls';
-    } else {
-      threatType = Classification;
-    }
+//     // Determine threat type based on Classification
+//     let threatType  = 'Unknown';
+//     if(EventName.includes('DoS')) {
+//       threatType = 'DoS/DDoS';
+//     } else if(EventName.includes('SQL')) {
+//       threatType = 'SQLi';
+//     } else if (EventName.includes('ICMP')) {
+//       threatType = 'ICMP'; // Set threat type to 'ICMP' for Generic ICMP events
+//     } else if(EventName.includes('Unauthorized')) {
+//       threatType = 'Acc Ctrls';
+//     } else {
+//       threatType = Classification;
+//     }
 
-    // Construct the analysis result object
-    const analysisResult = {
-      threatType: threatType,
-      sourceLine: EventName,
-      lineNumber: lineNum,
-      ipAddress: SourceIPAddress,
-      ipLocation: await fetchIPLocation(SourceIPAddress), // Assuming async IP location lookup
-      eventReceivedTime: EventReceivedTime,
-      sourceModuleName: SourceModuleName,
-      sourceModuleType: SourceModuleType,
-      eventTime: EventTime,
-      destinationIPAddress: DestinationIPAddress
-    };
+//     // Construct the analysis result object
+//     const analysisResult = {
+//       threatType: threatType,
+//       sourceLine: EventName,
+//       lineNumber: lineNum,
+//       ipAddress: SourceIPAddress,
+//       ipLocation: await fetchIPLocation(SourceIPAddress), // Assuming async IP location lookup
+//       eventReceivedTime: EventReceivedTime,
+//       sourceModuleName: SourceModuleName,
+//       sourceModuleType: SourceModuleType,
+//       eventTime: EventTime,
+//       destinationIPAddress: DestinationIPAddress
+//     };
 
-    // Push the analysis result into the analysis_res array
-    analysis_res.push(analysisResult);
-  } catch (error) {
-    console.error('Error parsing or analyzing log entry:', error);
-    // Handle error (e.g., log or throw error)
-  }
-};
+//     // Push the analysis result into the analysis_res array
+//     analysis_res.push(analysisResult);
+//   } catch (error) {
+//     console.error('Error parsing or analyzing log entry:', error);
+//     // Handle error (e.g., log or throw error)
+//   }
+// };
 
 const analyzeLogEntryRevized = async (logEntry, lineNum) => {
   try {
