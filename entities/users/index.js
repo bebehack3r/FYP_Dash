@@ -70,9 +70,25 @@ export const get = (req, res) => {
 
 export const update = (req, res) => {
   const { id, name, email, pass } = req.body;
-  if (!id || !name || !email || !pass) return res.status(400).json({ message: 'ERROR', data: 'All fields are required' });
-  const query = 'UPDATE users SET name = ?, email = ?, pass = ? WHERE id = ?';
-  req.databaseConnection.run(query, [name, email, pass, id], function(err) {
+  const toUpdate = {};
+  let queryInput = [];
+  let valueInput = [];
+  // if (!id || !name || !email || !pass) return res.status(400).json({ message: 'ERROR', data: 'All fields are required' });
+  if(name) {
+    toUpdate.name = name;
+  }
+  if(email) {
+    toUpdate.email = email;
+  }
+  if(pass) {
+    toUpdate.pass = pass;
+  }
+  Object.keys(toUpdate).map(k => {
+    queryInput.push(`${k} = ?`);
+    valueInput.push(toUpdate[k]);
+  });
+  const query = `UPDATE users SET ${queryInput.join(',')} WHERE id = ?`;
+  req.databaseConnection.run(query, [...valueInput, id], function(err) {
     if (err) return res.status(500).json({ message: 'ERROR', data: err.message });
     if (this.changes === 0) return res.status(404).json({ message: 'NULL', data: null });
     res.json({ message: 'OK', data: null });
